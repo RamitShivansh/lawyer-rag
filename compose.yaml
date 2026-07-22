@@ -1,0 +1,97 @@
+name: legal-rag
+
+x-app-environment: &app-environment
+  LEGAL_RAG_ENVIRONMENT: production
+  LEGAL_RAG_DATABASE_URL: postgresql+psycopg://legal_rag:${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}@postgres:5432/legal_rag
+  LEGAL_RAG_QDRANT_URL: http://qdrant:6333
+  LEGAL_RAG_DATA_DIR: /data
+  LEGAL_RAG_MODEL_CACHE_DIR: /opt/models
+  LEGAL_RAG_MODEL_LOCAL_FILES_ONLY: "true"
+  LEGAL_RAG_ADMIN_TOKEN: ${ADMIN_TOKEN:?set ADMIN_TOKEN}
+  LEGAL_RAG_MCP_TOKEN: ${MCP_TOKEN:?set MCP_TOKEN}
+  LEGAL_RAG_SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET}
+  LEGAL_RAG_BASE_URL: ${BASE_URL:-http://localhost:8000}
+  LEGAL_RAG_ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000}
+  LEGAL_RAG_TRUSTED_HOSTS: ${TRUSTED_HOSTS:-localhost,127.0.0.1}
+  LEGAL_RAG_SECURE_COOKIES: ${SECURE_COOKIES:-false}
+  LEGAL_RAG_LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  HF_HUB_DISABLE_TELEMETRY: "1"
+  DO_NOT_TRACK: "1"
+
+services:
+  postgres:
+    image: postgres:16.10-bookworm
+    environment:
+      POSTGRES_DB: legal_rag
+      POSTGRES_USER: legal_rag
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U legal_rag -d legal_rag"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+    networks: [backend]
+
+  qdrant:
+    image: qdrant/qdrant:v1.18.2
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: unless-stopped
+    networks: [backend]
+
+  migrate:
+    build: .
+    command: ["alembic", "upgrade", "head"]
+    environment: *app-environment
+    volumes:
+      - document_data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [backend]
+
+  api:
+    build: .
+    environment: *app-environment
+    volumes:
+      - document_data:/data
+    ports:
+      - "${BIND_ADDRESS:-127.0.0.1}:8000:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      qdrant:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/live', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+    networks: [backend]
+
+  worker:
+    build: .
+    command: ["lawyer-rag-worker"]
+    environment: *app-environment
+    volumes:
+      - document_data:/data
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      qdrant:
+        condition: service_started
+    restart: unless-stopped
+    stop_grace_period: 30s
+    networks: [backend]
+
+networks:
+  backend:
+
+volumes:
+  postgres_data:
+  qdrant_data:
+  document_data:

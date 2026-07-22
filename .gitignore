@@ -1,0 +1,14 @@
+.idea/
+.venv/
+.DS_Store
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.env
+data/
+models/
+dist/
+*.egg-info/

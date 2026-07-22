@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Admin login · Legal RAG{% endblock %}
+{% block content %}
+<div class="card" style="max-width:480px;margin:70px auto">
+  <h1>Admin access</h1>
+  <p class="muted">Enter the deployment's admin token. Document contents remain on this server.</p>
+  {% if error %}<p class="flash error">{{ error }}</p>{% endif %}
+  <form method="post" action="/admin/login">
+    <input type="hidden" name="next" value="{{ next }}">
+    <label>Admin token<br><input style="width:100%" type="password" name="token" required autofocus></label>
+    <p><button type="submit">Sign in</button></p>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,56 @@
+[project]
+name = "lawyer-rag"
+version = "0.1.0"
+description = "Dockerized, OCR-first legal case-file RAG exposed through MCP"
+readme = "README.md"
+requires-python = ">=3.12,<3.14"
+dependencies = [
+  "alembic==1.16.5",
+  "fastapi==0.136.3",
+  "httpx==0.28.1",
+  "itsdangerous==2.2.0",
+  "jinja2==3.1.6",
+  "mcp==1.27.2",
+  "ocrmypdf==17.8.1",
+  "orjson==3.11.3",
+  "pdfplumber==0.11.10",
+  "psycopg[binary]==3.2.10",
+  "pydantic-settings==2.10.1",
+  "pypdf==6.1.1",
+  "python-multipart==0.0.20",
+  "qdrant-client[fastembed]==1.18.0",
+  "sqlalchemy==2.0.43",
+  "structlog==25.4.0",
+  "uvicorn[standard]==0.35.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest==8.4.2",
+  "pytest-cov==7.0.0",
+  "pytest-asyncio==1.1.0",
+  "ruff==0.13.1",
+]
+
+[project.scripts]
+lawyer-rag-worker = "lawyer_rag.worker:main"
+lawyer-rag-eval = "lawyer_rag.evaluation:main"
+
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/lawyer_rag"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S"]
+ignore = ["S101"]

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Case matters</h1>
+<div class="card">
+  <h2>Create matter</h2>
+  <form class="inline" method="post" action="/admin/matters">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <input name="name" placeholder="Matter name" maxlength="200" required>
+    <button>Create</button>
+  </form>
+</div>
+{% for matter in matters %}
+<section class="card">
+  <h2>{{ matter.name }}</h2>
+  <p class="muted"><code>{{ matter.id }}</code></p>
+  <form method="post" action="/admin/matters/{{ matter.id }}/documents" enctype="multipart/form-data">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <div class="grid">
+      <label>PDF files<br><input type="file" name="files" accept="application/pdf,.pdf" multiple required></label>
+      <label>Document type<br><select name="document_type"><option>unknown</option><option>petition</option><option>reply</option><option>affidavit</option><option>evidence</option><option>judgment</option><option>order</option><option>application</option></select></label>
+    </div>
+    <p><button>Upload and queue OCR</button></p>
+  </form>
+  {% set documents = docs_by_matter.get(matter.id, []) %}
+  {% if documents %}
+  <table>
+    <thead><tr><th>Document</th><th>Status</th><th>Progress</th><th>Actions</th></tr></thead>
+    <tbody>
+    {% for document in documents %}
+      <tr>
+        <td><strong>{{ document.original_name }}</strong><br><span class="muted">{{ document.document_type }} · {{ document.size_bytes }} bytes</span>{% if document.error_message %}<br><span style="color:var(--danger)">{{ document.error_message }}</span>{% endif %}</td>
+        <td><span class="status {{ document.status }}">{{ document.status }}</span></td>
+        <td>{{ document.processed_pages }}/{{ document.page_count }} pages</td>
+        <td class="actions">
+          {% if document.status == 'ready' %}<a href="/admin/documents/{{ document.id }}/original">Original</a>{% endif %}
+          {% if document.status == 'failed' %}<form method="post" action="/admin/documents/{{ document.id }}/retry"><input type="hidden" name="csrf" value="{{ csrf }}"><button>Retry</button></form>{% endif %}
+          {% if document.status != 'archived' %}<form method="post" action="/admin/documents/{{ document.id }}/archive" onsubmit="return confirm('Archive this document and remove it from retrieval?')"><input type="hidden" name="csrf" value="{{ csrf }}"><button class="danger">Archive</button></form>{% endif %}
+        </td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="muted">No documents uploaded.</p>{% endif %}
+</section>
+{% else %}<p class="muted">Create the first matter, then upload the case PDFs.</p>{% endfor %}
+{% endblock %}

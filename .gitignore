@@ -12,3 +12,4 @@ data/
 models/
 dist/
 *.egg-info/
+test_data/

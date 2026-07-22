@@ -33,6 +33,16 @@ def verify_csrf(request: Request, token: str) -> None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid CSRF token")
 
 
+def require_bearer_token(authorization: str, expected_token: str) -> None:
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not constant_time_equal(token, expected_token):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid bearer token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
 class MCPAuthMiddleware:
     def __init__(self, app: ASGIApp, settings: Settings):
         self.app = app
@@ -49,9 +59,9 @@ class MCPAuthMiddleware:
             await self._reject(send, 403, b"Origin not allowed")
             return
 
-        authorization = headers.get("authorization", "")
-        scheme, _, token = authorization.partition(" ")
-        if scheme.lower() != "bearer" or not constant_time_equal(token, self.settings.mcp_token):
+        try:
+            require_bearer_token(headers.get("authorization", ""), self.settings.mcp_token)
+        except HTTPException:
             await self._reject(send, 401, b"Invalid MCP bearer token", include_auth=True)
             return
 

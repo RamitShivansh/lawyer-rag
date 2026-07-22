@@ -86,6 +86,20 @@ Use MCP Inspector against the URL above and configure the bearer header in its c
 settings. A conforming client must send the negotiated `MCP-Protocol-Version` header; the MCP
 SDK handles validation.
 
+## Custom GPT actions
+
+The application also exposes a read-only REST surface for ChatGPT custom GPT Actions. After
+hosting the app on your HTTPS domain, create a GPT in ChatGPT and import:
+
+- OpenAPI schema: `https://your-domain.example/gpt/openapi.json`
+- Privacy policy: `https://your-domain.example/gpt/privacy`
+- Authentication: API key, Bearer, using the same secret as `MCP_TOKEN`
+
+The action endpoints can list matters and documents, search evidence, find proposition-related
+passages, resolve citations, and read OCR pages. They cannot upload, mutate, archive, or delete
+case files. See [docs/gpt-setup.md](docs/gpt-setup.md) for copy-paste GPT instructions,
+conversation starters, and hosting notes.
+
 ## Development
 
 ```bash

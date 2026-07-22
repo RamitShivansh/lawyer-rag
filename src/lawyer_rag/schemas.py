@@ -5,6 +5,21 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
+class SearchRequest(BaseModel):
+    matter_id: str
+    query: str
+    document_ids: list[str] | None = None
+    document_types: list[str] | None = None
+    top_k: int = Field(default=10, ge=1, le=20)
+
+
+class FindEvidenceRequest(BaseModel):
+    matter_id: str
+    proposition: str
+    query_variants: list[str] | None = None
+    top_k: int = Field(default=15, ge=1, le=20)
+
+
 class MatterResult(BaseModel):
     id: str
     name: str

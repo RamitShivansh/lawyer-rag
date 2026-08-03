@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import pytest
+
 from lawyer_rag.mcp_server import APP_RESOURCE_MIME_TYPE, APP_RESOURCE_URI, mcp
 
 
@@ -47,3 +49,21 @@ def test_search_and_fetch_match_chatgpt_app_compatibility_shapes() -> None:
     assert {"id", "title", "text", "url"}.issubset(
         tools["fetch"].fn_metadata.output_schema["properties"]
     )
+
+
+@pytest.mark.asyncio
+async def test_apps_sdk_tools_expose_oauth_security_schemes() -> None:
+    tools = {tool.name: tool.model_dump(by_alias=True) for tool in await mcp.list_tools()}
+
+    assert tools["list_matters"]["securitySchemes"] == [
+        {"type": "oauth2", "scopes": ["matters:read"]}
+    ]
+    assert tools["read_document"]["securitySchemes"] == [
+        {"type": "oauth2", "scopes": ["documents:read"]}
+    ]
+    assert tools["search_case_file"]["securitySchemes"] == [
+        {"type": "oauth2", "scopes": ["evidence:search"]}
+    ]
+    assert tools["fetch"]["securitySchemes"] == [
+        {"type": "oauth2", "scopes": ["citations:read"]}
+    ]

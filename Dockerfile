@@ -42,4 +42,4 @@ RUN groupadd --gid 10001 app \
 
 USER app
 EXPOSE 8000
-CMD ["uvicorn", "lawyer_rag.app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "lawyer_rag.app:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers", "--forwarded-allow-ips", "*"]

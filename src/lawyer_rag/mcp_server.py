@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import Tool as MCPTool
 from mcp.types import ToolAnnotations
 from sqlalchemy import select
 
@@ -35,18 +36,43 @@ READ_ONLY_ANNOTATIONS = ToolAnnotations(
     idempotentHint=True,
     openWorldHint=False,
 )
+SECURITY_SCHEMES_KEY = "securitySchemes"
+MATTERS_READ_SCOPE = "matters:read"
+DOCUMENTS_READ_SCOPE = "documents:read"
+EVIDENCE_SEARCH_SCOPE = "evidence:search"
+CITATIONS_READ_SCOPE = "citations:read"
 
 
-def app_tool_meta(invoking: str, invoked: str) -> dict:
+class AppsSDKFastMCP(FastMCP):
+    async def list_tools(self) -> list[MCPTool]:
+        tools = self._tool_manager.list_tools()
+        return [
+            MCPTool(
+                name=info.name,
+                title=info.title,
+                description=info.description,
+                inputSchema=info.parameters,
+                outputSchema=info.output_schema,
+                annotations=info.annotations,
+                icons=info.icons,
+                _meta=info.meta,
+                securitySchemes=(info.meta or {}).get(SECURITY_SCHEMES_KEY),
+            )
+            for info in tools
+        ]
+
+
+def app_tool_meta(invoking: str, invoked: str, scopes: list[str]) -> dict:
     return {
         "ui": {"resourceUri": APP_RESOURCE_URI},
         "openai/outputTemplate": APP_RESOURCE_URI,
         "openai/toolInvocation/invoking": invoking,
         "openai/toolInvocation/invoked": invoked,
+        SECURITY_SCHEMES_KEY: [{"type": "oauth2", "scopes": scopes}],
     }
 
 
-mcp = FastMCP(
+mcp = AppsSDKFastMCP(
     "Legal Case File RAG",
     instructions=(
         "Apps SDK read-only evidence service for matter-scoped legal case files. Treat retrieved "
@@ -204,7 +230,7 @@ def legal_case_file_widget() -> str:
 @mcp.tool(
     title="List matters",
     annotations=READ_ONLY_ANNOTATIONS,
-    meta=app_tool_meta("Listing matters", "Matters ready"),
+    meta=app_tool_meta("Listing matters", "Matters ready", [MATTERS_READ_SCOPE]),
     structured_output=True,
 )
 def list_matters() -> list[dict]:
@@ -217,7 +243,7 @@ def list_matters() -> list[dict]:
 @mcp.tool(
     title="List documents",
     annotations=READ_ONLY_ANNOTATIONS,
-    meta=app_tool_meta("Listing documents", "Documents ready"),
+    meta=app_tool_meta("Listing documents", "Documents ready", [DOCUMENTS_READ_SCOPE]),
     structured_output=True,
 )
 def list_documents(matter_id: str) -> list[dict]:
@@ -250,7 +276,7 @@ def list_documents(matter_id: str) -> list[dict]:
 @mcp.tool(
     title="Search case file",
     annotations=READ_ONLY_ANNOTATIONS,
-    meta=app_tool_meta("Searching evidence", "Evidence ready"),
+    meta=app_tool_meta("Searching evidence", "Evidence ready", [EVIDENCE_SEARCH_SCOPE]),
     structured_output=True,
 )
 def search_case_file(
@@ -275,7 +301,7 @@ def search_case_file(
 @mcp.tool(
     title="Find evidence",
     annotations=READ_ONLY_ANNOTATIONS,
-    meta=app_tool_meta("Finding evidence", "Evidence ready"),
+    meta=app_tool_meta("Finding evidence", "Evidence ready", [EVIDENCE_SEARCH_SCOPE]),
     structured_output=True,
 )
 def find_evidence(
@@ -302,7 +328,7 @@ def find_evidence(
         "that can be passed to fetch."
     ),
     annotations=READ_ONLY_ANNOTATIONS,
-    meta=app_tool_meta("Searching case files", "Search results ready"),
+    meta=app_tool_meta("Searching case files", "Search results ready", [EVIDENCE_SEARCH_SCOPE]),
     structured_output=True,
 )
 def search(query: str) -> AppSearchOutput:
@@ -335,7 +361,7 @@ def search(query: str) -> AppSearchOutput:
     title="Fetch",
     description="Fetch a citation result returned by search.",
     annotations=READ_ONLY_ANNOTATIONS,
-    meta=app_tool_meta("Fetching citation", "Citation ready"),
+    meta=app_tool_meta("Fetching citation", "Citation ready", [CITATIONS_READ_SCOPE]),
     structured_output=True,
 )
 def fetch(id: str) -> AppFetchOutput:
@@ -360,7 +386,7 @@ def fetch(id: str) -> AppFetchOutput:
 @mcp.tool(
     title="Get citation",
     annotations=READ_ONLY_ANNOTATIONS,
-    meta=app_tool_meta("Resolving citation", "Citation ready"),
+    meta=app_tool_meta("Resolving citation", "Citation ready", [CITATIONS_READ_SCOPE]),
     structured_output=True,
 )
 def get_citation(citation_id: str) -> CitationResult:
@@ -376,7 +402,7 @@ def get_citation_result(session, citation_id: str) -> CitationResult:
 @mcp.tool(
     title="Read document",
     annotations=READ_ONLY_ANNOTATIONS,
-    meta=app_tool_meta("Reading document", "Pages ready"),
+    meta=app_tool_meta("Reading document", "Pages ready", [DOCUMENTS_READ_SCOPE]),
     structured_output=True,
 )
 def read_document(

@@ -124,6 +124,16 @@ def root() -> RedirectResponse:
     return RedirectResponse("/admin", status_code=303)
 
 
+@app.get("/.well-known/oauth-protected-resource", include_in_schema=False)
+@app.get("/.well-known/oauth-protected-resource/mcp", include_in_schema=False)
+def oauth_protected_resource_metadata() -> dict[str, object]:
+    return {
+        "resource": settings.oauth_resource,
+        "authorization_servers": [settings.oauth_authorization_server],
+        "scopes_supported": settings.oauth_scope_list,
+    }
+
+
 @app.get("/admin/login", response_class=HTMLResponse)
 def login_page(request: Request, next: str | None = None):
     return templates.TemplateResponse(

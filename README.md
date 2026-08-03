@@ -30,6 +30,8 @@ LangChain, mutable MCP tools, or fixed-size PDF pipeline.
    Put a different random value in each secret field. Keep `BIND_ADDRESS=127.0.0.1` unless
    the service is reachable only through a trusted LAN or VPN. When using HTTPS, set
    `BASE_URL`, `ALLOWED_ORIGINS`, `TRUSTED_HOSTS`, and `SECURE_COOKIES=true` accordingly.
+   Keep `MCP_AUTH_MODE=bearer` for local testing. Use `MCP_AUTH_MODE=oauth` for the hosted
+   ChatGPT plugin once Auth0 is configured.
 
 2. Build and start:
 
@@ -54,13 +56,15 @@ LangChain, mutable MCP tools, or fixed-size PDF pipeline.
 
 - URL: `http://localhost:8000/mcp`
 - Transport: stateless Streamable HTTP
-- Header: `Authorization: Bearer <MCP_TOKEN>`
+- Local authentication: `Authorization: Bearer <MCP_TOKEN>`
+- Hosted plugin authentication: Auth0 OAuth access tokens
 
 The MCP server now exposes:
 
 - An Apps SDK widget resource at `ui://widget/legal-case-file.html` with
   `text/html;profile=mcp-app`.
 - Read-only tool annotations and widget metadata on every tool descriptor.
+- OAuth `securitySchemes` on tool descriptors for read scopes.
 - Compatibility `search(query)` and `fetch(id)` tools for ChatGPT app/company-knowledge-style
   retrieval.
 - Repo-local plugin metadata in `.codex-plugin/plugin.json` and `.mcp.json`.
@@ -101,17 +105,59 @@ SDK handles validation.
 
 ## ChatGPT developer-mode app
 
-For ChatGPT Apps SDK testing, host the server at an HTTPS URL and connect the remote MCP endpoint
-from ChatGPT developer mode:
+For local ChatGPT Apps SDK testing, host the server at an HTTPS URL and connect the remote MCP
+endpoint from ChatGPT developer mode with bearer auth:
 
 - MCP URL: `https://your-domain.example/mcp`
 - Authentication: bearer token using `MCP_TOKEN`
 - Widget resource: `ui://widget/legal-case-file.html`
 
-Production/public distribution needs a submitted plugin and a stable HTTPS deployment. For this
-single-operator MVP, keep the shared bearer token private and only connect deployments protected
-by your own network, tunnel, or hosting controls. See [docs/apps-sdk.md](docs/apps-sdk.md) for
-the migration notes and deployment checklist.
+For a hosted ChatGPT OAuth plugin, use Auth0:
+
+1. Create an Auth0 API.
+   - Identifier: `https://legalagentmcp.ramitshivansh.com/mcp`
+   - Signing algorithm: RS256
+   - Permissions: `matters:read`, `documents:read`, `evidence:search`, `citations:read`
+2. In Auth0, enable the MCP Resource Parameter Compatibility Profile and Include Issuer in
+   Authorization Responses.
+3. Create an Auth0 Regular Web Application for ChatGPT.
+   - Grant type: Authorization Code
+   - Token endpoint auth method: `client_secret_post`
+   - Allowed callback URL: the exact `https://chatgpt.com/connector/oauth/{callback_id}` value
+     shown in ChatGPT's plugin setup modal
+4. Set production environment values:
+
+   ```text
+   BASE_URL=https://legalagentmcp.ramitshivansh.com
+   MCP_AUTH_MODE=oauth
+   OAUTH_ISSUER=https://your-tenant.auth0.com/
+   OAUTH_AUDIENCE=https://legalagentmcp.ramitshivansh.com/mcp
+   OAUTH_REQUIRED_SCOPES=matters:read documents:read evidence:search citations:read
+   ALLOWED_ORIGINS=https://chatgpt.com,https://chat.openai.com,https://legalagentmcp.ramitshivansh.com
+   TRUSTED_HOSTS=legalagentmcp.ramitshivansh.com
+   SECURE_COOKIES=true
+   ```
+
+5. In ChatGPT's plugin setup modal:
+   - MCP URL: `https://legalagentmcp.ramitshivansh.com/mcp`
+   - Authentication: OAuth
+   - Registration method: User-Defined OAuth Client
+   - OAuth Client ID/Secret: values from the Auth0 application
+   - Token endpoint auth method: `client_secret_post`
+
+Smoke-check OAuth metadata before creating the plugin:
+
+```bash
+curl -i https://legalagentmcp.ramitshivansh.com/.well-known/oauth-protected-resource
+curl -i https://legalagentmcp.ramitshivansh.com/.well-known/oauth-protected-resource/mcp
+curl -i https://legalagentmcp.ramitshivansh.com/mcp/
+```
+
+The unauthenticated `/mcp/` request should return a `401` with a `WWW-Authenticate` challenge
+that points at `/.well-known/oauth-protected-resource/mcp`.
+
+Production/public distribution needs a submitted plugin and a stable HTTPS deployment. See
+[docs/apps-sdk.md](docs/apps-sdk.md) for the migration notes and deployment checklist.
 
 ## Development
 

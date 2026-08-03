@@ -28,11 +28,18 @@ class Settings(BaseSettings):
     reranker_model: str = "Xenova/ms-marco-MiniLM-L-6-v2"
     model_local_files_only: bool = False
 
-    admin_token: str = "development-admin-token"
-    mcp_token: str = "development-mcp-token"
-    session_secret: str = "replace-this-session-secret-before-deployment"
+    admin_token: str = "development-admin-token"  # noqa: S105
+    mcp_token: str = "development-mcp-token"  # noqa: S105
+    mcp_auth_mode: str = "bearer"
+    session_secret: str = "replace-this-session-secret-before-deployment"  # noqa: S105
     base_url: str = "http://localhost:8000"
     allowed_origins: str = "http://localhost:8000,http://127.0.0.1:8000"
+    oauth_issuer: str = ""
+    oauth_audience: str = ""
+    oauth_required_scopes: str = (
+        "matters:read documents:read evidence:search citations:read"
+    )
+    oauth_jwks_url: str = ""
 
     max_upload_bytes: int = 250 * 1024 * 1024
     max_pdf_pages: int = 1000
@@ -56,6 +63,29 @@ class Settings(BaseSettings):
     @property
     def trusted_host_list(self) -> list[str]:
         return [host.strip() for host in self.trusted_hosts.split(",") if host.strip()]
+
+    @property
+    def oauth_scope_list(self) -> list[str]:
+        scopes = self.oauth_required_scopes.replace(",", " ").split()
+        return [scope.strip() for scope in scopes if scope.strip()]
+
+    @property
+    def oauth_resource(self) -> str:
+        return self.oauth_audience or f"{self.base_url.rstrip('/')}/mcp"
+
+    @property
+    def oauth_resource_metadata_url(self) -> str:
+        return f"{self.base_url.rstrip('/')}/.well-known/oauth-protected-resource/mcp"
+
+    @property
+    def oauth_authorization_server(self) -> str:
+        return self.oauth_issuer.rstrip("/")
+
+    @property
+    def resolved_oauth_jwks_url(self) -> str:
+        if self.oauth_jwks_url:
+            return self.oauth_jwks_url
+        return f"{self.oauth_authorization_server}/.well-known/jwks.json"
 
     def ensure_directories(self) -> None:
         self.data_dir.mkdir(parents=True, exist_ok=True)

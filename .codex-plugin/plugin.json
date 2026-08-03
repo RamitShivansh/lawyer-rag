@@ -1,0 +1,33 @@
+{
+  "name": "lawyer-rag",
+  "version": "0.1.0",
+  "description": "Read-only legal case-file RAG app exposed through an Apps SDK-compatible MCP server.",
+  "author": {
+    "name": "Local developer"
+  },
+  "license": "Proprietary",
+  "keywords": [
+    "apps-sdk",
+    "mcp",
+    "legal",
+    "rag",
+    "ocr"
+  ],
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Legal Case File RAG",
+    "shortDescription": "Search and cite legal case files",
+    "longDescription": "Connect ChatGPT to a privately hosted, read-only legal case-file retrieval service with citation-ready search results, OCR page reading, and an Apps SDK widget.",
+    "developerName": "Local developer",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive"
+    ],
+    "defaultPrompt": [
+      "Search my case file for service of notice",
+      "Find evidence for this proposition",
+      "Summarize this matter with citations"
+    ],
+    "brandColor": "#1F6E5A"
+  }
+}

@@ -21,6 +21,8 @@ x-app-environment: &app-environment
 services:
   postgres:
     image: postgres:16.10-bookworm
+    ports:
+      - "5432:5432"
     environment:
       POSTGRES_DB: legal_rag
       POSTGRES_USER: legal_rag

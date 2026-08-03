@@ -78,3 +78,21 @@ class ReadDocumentResult(BaseModel):
     pages: list[ReadPage]
     next_start_page: int | None
     complete: bool
+
+
+class AppSearchResult(BaseModel):
+    id: str
+    title: str
+    url: str
+
+
+class AppSearchOutput(BaseModel):
+    results: list[AppSearchResult]
+
+
+class AppFetchOutput(BaseModel):
+    id: str
+    title: str
+    text: str
+    url: str
+    metadata: dict[str, Any] | None = None

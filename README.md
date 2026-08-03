@@ -1,15 +1,17 @@
-# Legal Case File RAG MCP Server
+# Legal Case File RAG Apps SDK Server
 
 An OCR-first, matter-scoped evidence service for scanned legal case files. Operators upload
-PDFs in a small admin UI; trusted agents retrieve passages through read-only MCP tools. The
-service does not generate legal answers or store generated summaries.
+PDFs in a small admin UI; ChatGPT and trusted agents retrieve passages through read-only
+Apps SDK-compatible MCP tools. The service does not generate legal answers or store generated
+summaries.
 
 ## Architecture
 
 - PostgreSQL is the source of truth for matters, documents, OCR pages, chunks, and jobs.
 - Qdrant stores BM25 sparse vectors and BGE dense vectors with matter filters.
 - A CPU worker runs OCRmyPDF/Tesseract, legal-aware chunking, embedding, and indexing.
-- FastAPI hosts the admin UI, citation viewer, health checks, and authenticated MCP endpoint.
+- FastAPI hosts the admin UI, citation viewer, health checks, and authenticated Apps SDK MCP
+  endpoint.
 - Models are downloaded while the image is built and loaded locally at runtime.
 
 The design takes architectural inspiration from
@@ -48,14 +50,23 @@ LangChain, mutable MCP tools, or fixed-size PDF pipeline.
    docker compose logs -f api worker
    ```
 
-## MCP connection
+## Apps SDK connection
 
 - URL: `http://localhost:8000/mcp`
 - Transport: stateless Streamable HTTP
 - Header: `Authorization: Bearer <MCP_TOKEN>`
 
-To register the server with Codex, expose the same token to the Codex process and add the
-Streamable HTTP endpoint:
+The MCP server now exposes:
+
+- An Apps SDK widget resource at `ui://widget/legal-case-file.html` with
+  `text/html;profile=mcp-app`.
+- Read-only tool annotations and widget metadata on every tool descriptor.
+- Compatibility `search(query)` and `fetch(id)` tools for ChatGPT app/company-knowledge-style
+  retrieval.
+- Repo-local plugin metadata in `.codex-plugin/plugin.json` and `.mcp.json`.
+
+For local Codex/plugin testing, expose the same token to the Codex process and add the
+Streamable HTTP endpoint, or use the checked-in `.mcp.json` from a plugin install:
 
 ```bash
 export LEGAL_RAG_MCP_TOKEN='<same value as MCP_TOKEN in .env>'
@@ -71,6 +82,8 @@ token in a project-level configuration file.
 
 Available tools:
 
+- `search`
+- `fetch`
 - `list_matters`
 - `list_documents`
 - `search_case_file`
@@ -86,19 +99,19 @@ Use MCP Inspector against the URL above and configure the bearer header in its c
 settings. A conforming client must send the negotiated `MCP-Protocol-Version` header; the MCP
 SDK handles validation.
 
-## Custom GPT actions
+## ChatGPT developer-mode app
 
-The application also exposes a read-only REST surface for ChatGPT custom GPT Actions. After
-hosting the app on your HTTPS domain, create a GPT in ChatGPT and import:
+For ChatGPT Apps SDK testing, host the server at an HTTPS URL and connect the remote MCP endpoint
+from ChatGPT developer mode:
 
-- OpenAPI schema: `https://your-domain.example/gpt/openapi.json`
-- Privacy policy: `https://your-domain.example/gpt/privacy`
-- Authentication: API key, Bearer, using the same secret as `MCP_TOKEN`
+- MCP URL: `https://your-domain.example/mcp`
+- Authentication: bearer token using `MCP_TOKEN`
+- Widget resource: `ui://widget/legal-case-file.html`
 
-The action endpoints can list matters and documents, search evidence, find proposition-related
-passages, resolve citations, and read OCR pages. They cannot upload, mutate, archive, or delete
-case files. See [docs/gpt-setup.md](docs/gpt-setup.md) for copy-paste GPT instructions,
-conversation starters, and hosting notes.
+Production/public distribution needs a submitted plugin and a stable HTTPS deployment. For this
+single-operator MVP, keep the shared bearer token private and only connect deployments protected
+by your own network, tunnel, or hosting controls. See [docs/apps-sdk.md](docs/apps-sdk.md) for
+the migration notes and deployment checklist.
 
 ## Development
 

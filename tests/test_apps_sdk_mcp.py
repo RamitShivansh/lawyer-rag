@@ -2,7 +2,13 @@ from __future__ import annotations
 
 import pytest
 
-from lawyer_rag.mcp_server import APP_RESOURCE_MIME_TYPE, APP_RESOURCE_URI, mcp
+from lawyer_rag.config import Settings
+from lawyer_rag.mcp_server import (
+    APP_RESOURCE_MIME_TYPE,
+    APP_RESOURCE_URI,
+    mcp,
+    transport_security_settings,
+)
 
 
 def test_apps_sdk_widget_resource_is_registered() -> None:
@@ -66,4 +72,33 @@ async def test_apps_sdk_tools_expose_oauth_security_schemes() -> None:
     ]
     assert tools["fetch"]["securitySchemes"] == [
         {"type": "oauth2", "scopes": ["citations:read"]}
+    ]
+
+
+def test_mcp_transport_security_allows_configured_public_host() -> None:
+    config = Settings(
+        base_url="https://legalagentmcp.ramitshivansh.com",
+        trusted_hosts="legalagentmcp.ramitshivansh.com,localhost,127.0.0.1",
+        allowed_origins=(
+            "https://chatgpt.com,"
+            "https://chat.openai.com,"
+            "https://legalagentmcp.ramitshivansh.com"
+        ),
+    )
+
+    security = transport_security_settings(config)
+
+    assert security.enable_dns_rebinding_protection is True
+    assert security.allowed_hosts == [
+        "127.0.0.1",
+        "127.0.0.1:*",
+        "legalagentmcp.ramitshivansh.com",
+        "legalagentmcp.ramitshivansh.com:*",
+        "localhost",
+        "localhost:*",
+    ]
+    assert security.allowed_origins == [
+        "https://chat.openai.com",
+        "https://chatgpt.com",
+        "https://legalagentmcp.ramitshivansh.com",
     ]

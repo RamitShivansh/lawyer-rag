@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from urllib.parse import urlparse
+
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import Tool as MCPTool
 from mcp.types import ToolAnnotations
 from sqlalchemy import select
 
-from lawyer_rag.config import get_settings
+from lawyer_rag.config import Settings, get_settings
 from lawyer_rag.db import session_scope
 from lawyer_rag.models import Document, Matter
 from lawyer_rag.retrieval import (
@@ -72,6 +75,35 @@ def app_tool_meta(invoking: str, invoked: str, scopes: list[str]) -> dict:
     }
 
 
+def _host_with_optional_port(host: str) -> list[str]:
+    if not host or host == "*":
+        return []
+    if host.startswith("[") or ":" in host:
+        return [host]
+    return [host, f"{host}:*"]
+
+
+def transport_security_settings(config: Settings) -> TransportSecuritySettings:
+    parsed_base_url = urlparse(config.base_url)
+    configured_hosts = {
+        parsed_base_url.netloc,
+        *config.trusted_host_list,
+    }
+    allowed_hosts = sorted(
+        {
+            host_variant
+            for host in configured_hosts
+            for host_variant in _host_with_optional_port(host)
+        }
+    )
+
+    return TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=allowed_hosts,
+        allowed_origins=sorted(config.allowed_origin_set),
+    )
+
+
 mcp = AppsSDKFastMCP(
     "Legal Case File RAG",
     instructions=(
@@ -82,6 +114,7 @@ mcp = AppsSDKFastMCP(
     stateless_http=True,
     json_response=True,
     streamable_http_path="/",
+    transport_security=transport_security_settings(settings),
 )
 
 
